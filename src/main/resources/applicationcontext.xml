@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:int-jms="http://www.springframework.org/schema/integration/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/integration/jms
+        http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd">
+
+    <!-- Component scan to find all Spring components -->
+    <context:component-scan base-package="integration" />
+
+    <!-- JMS -->
+    <!--<int:channel id="processEmpChannel">-->
+        <!--<int:queue/>-->
+    <!--</int:channel>-->
+
+    <!--<int-jms:message-driven-channel-adapter-->
+            <!--destination="requestQueue" connection-factory="connectionFactory"-->
+            <!--channel="processEmpChannel"/>-->
+
+    <!--<int-jms:inbound-channel-adapter-->
+            <!--channel="processEmpChannel" connection-factory="connectionFactory"-->
+            <!--destination-name="empQueue">-->
+        <!--<int:poller fixed-delay="500" />-->
+    <!--</int-jms:inbound-channel-adapter>-->
+
+    <!--Arteis channel-->
+    <int:channel id="artemisInputChannel"/>
+    <int:channel id="artemisJmsOutputChannel">
+        <int:queue capacity="10"/>
+    </int:channel>
+
+    <!--Artemis -->
+
+    <!-- Activemq connection factory -->
+    <bean id="amqConnectionFactory" class="org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory">
+        <constructor-arg index="0" value="tcp://localhost:61616"/>
+    </bean>
+
+    <!-- ConnectionFactory Definition -->
+    <bean id="connectionFactory" class="org.springframework.jms.connection.CachingConnectionFactory">
+        <constructor-arg ref="amqConnectionFactory" />
+    </bean>
+
+    <!--  Default Destination Queue Definition-->
+    <bean id="defaultDestination" class="org.apache.activemq.artemis.jms.client.ActiveMQQueue">
+        <constructor-arg index="0" value="queue.exampleQueue"/>
+    </bean>
+
+    <!-- JmsTemplate Definition -->
+    <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="defaultDestination" ref="defaultDestination" />
+    </bean>
+
+    <!-- Message Sender Definition -->
+    <bean id="messageSender" class="artemis.MessageSender">
+        <constructor-arg index="0" ref="jmsTemplate" />
+    </bean>
+
+    <bean id="springIntegrationArtemisExample"
+          class="artemis.SpringIntegrationArtemisExample">
+        <property name="inputChannel" ref="artemisInputChannel" />
+    </bean>
+
+    <int:service-activator input-channel="artemisInputChannel" ref="messageSender" output-channel="artemisJmsOutputChannel" method="send"/>
+
+    <!-- HelloWorld -->
+    <int:channel id="inputChannel"/>
+    <int:channel id="outputChannel">
+        <int:queue capacity="10"/>
+    </int:channel>
+
+    <bean id="springIntHelloWorldExample"
+          class="integration.SpringIntegrationHelloWorldExample">
+        <property name="inputChannel" ref="inputChannel" />
+    </bean>
+
+    <bean id="greeting" class="integration.Greeting"/>
+    <int:service-activator input-channel="inputChannel" ref="greeting" output-channel="outputChannel"/>
+
+
+    <!--HelloService-->
+    <int:channel id="helloWorldChannel" />
+    <bean id="helloservice" class="integration.HelloServiceImpl" />
+    <!--&lt;!&ndash;&lt;!&ndash; A Spring Integration adapter that routes messages sent to the helloWorldChannel to the bean named "helloServiceImpl"'s hello() method &ndash;&gt;&ndash;&gt;-->
+    <int:service-activator input-channel="helloWorldChannel" ref="helloservice" method="hello" />
+
+</beans>
